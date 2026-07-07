@@ -1,0 +1,79 @@
+﻿@rendermode InteractiveServer
+@page "/create-request"
+@using CleaningRequests.Models
+@using CleaningRequests.Data
+@inject ApplicationDbContext DbContext
+
+<h3>Подача заявки на клининг</h3>
+
+<EditForm FormName="CreateRequestForm" Model="@request" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group">
+        <label>ФИО сотрудника:</label>
+        <InputText class="form-control" @bind-Value="request.FullName" />
+        <ValidationMessage For="@(() => request.FullName)" />
+    </div>
+
+    <div class="form-group">
+        <label>Контактный номер телефона:</label>
+        <InputText class="form-control" @bind-Value="request.PhoneNumber" />
+        <ValidationMessage For="@(() => request.PhoneNumber)" />
+    </div>
+
+    <div class="form-group">
+        <label>Адрес офиса:</label>
+        <InputText class="form-control" @bind-Value="request.OfficeAddress" />
+        <ValidationMessage For="@(() => request.OfficeAddress)" />
+    </div>
+
+    <div class="form-group">
+        <label>Кабинеты:</label>
+        <InputText class="form-control" @bind-Value="request.Rooms" />
+        <ValidationMessage For="@(() => request.Rooms)" />
+    </div>
+
+    <div class="form-group">
+        <label>Необходимые услуги (через запятую):</label>
+        <InputTextArea class="form-control" @bind-Value="request.Services" rows="3" />
+        <ValidationMessage For="@(() => request.Services)" />
+    </div>
+
+    <div class="form-group">
+        <label>Дата и время:</label>
+        <InputDate class="form-control" @bind-Value="request.RequestDateTime" />
+        <ValidationMessage For="@(() => request.RequestDateTime)" />
+    </div>
+
+    <div class="form-group">
+        <label>Комментарий (необязательно):</label>
+        <InputTextArea class="form-control" @bind-Value="request.InitialComment" rows="3" />
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">Отправить заявку</button>
+</EditForm>
+
+@if (isSubmitted)
+{
+    <div class="alert alert-success mt-3">
+        Заявка успешно отправлена! Ей присвоен статус "В работе".
+    </div>
+}
+
+@code {
+    private CleaningRequest request = new CleaningRequest();
+    private bool isSubmitted = false;
+
+    private async Task HandleValidSubmit()
+    {
+        // сохранение заявки в БД
+        DbContext.Requests.Add(request);
+        await DbContext.SaveChangesAsync();
+
+        isSubmitted = true;
+
+        // форма сбрасывается для новой заявки
+        request = new CleaningRequest();
+    }
+}
