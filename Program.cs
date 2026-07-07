@@ -1,4 +1,6 @@
 using CleaningRequests.Components;
+using CleaningRequests.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace CleaningRequests
 {
@@ -12,7 +14,16 @@ namespace CleaningRequests
             builder.Services.AddRazorComponents()
                 .AddInteractiveServerComponents();
 
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+                options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
             var app = builder.Build();
+
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                db.Database.EnsureCreated();
+            }
 
             // Configure the HTTP request pipeline.
             if (!app.Environment.IsDevelopment())
