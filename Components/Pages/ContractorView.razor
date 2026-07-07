@@ -1,0 +1,99 @@
+﻿@page "/contractor"
+@rendermode InteractiveServer
+@using CleaningRequests.Models
+@using CleaningRequests.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+<h3>Панель подрядчика — Заявки в работе</h3>
+
+@if (requests == null)
+{
+    <p><em>Загрузка списка заявок...</em></p>
+}
+else if (!requests.Any())
+{
+    <div class="alert alert-info mt-3">
+        На данный момент нет заявок в работе.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-bordered mt-3">
+        <thead class="table-dark">
+            <tr>
+                <th>№</th>
+                <th>ФИО сотрудника</th>
+                <th>Телефон</th>
+                <th>Адрес</th>
+                <th>Кабинеты</th>
+                <th>Услуги</th>
+                <th>Дата и время</th>
+                <th>Комментарий</th>
+                <th>Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var request in requests)
+            {
+                <tr>
+                    <td>@request.Id</td>
+                    <td>@request.FullName</td>
+                    <td>@request.PhoneNumber</td>
+                    <td>@request.OfficeAddress</td>
+                    <td>@request.Rooms</td>
+                    <td>@request.Services</td>
+                    <td>@request.RequestDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>@(string.IsNullOrEmpty(request.InitialComment) ? "—" : request.InitialComment)</td>
+                    <td>
+                        <button class="btn btn-success btn-sm"
+                                @onclick="() => MarkAsCompleted(request.Id)">
+                            Отметить выполнение
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (successMessage != null)
+{
+    <div class="alert alert-success mt-3">
+        @successMessage
+    </div>
+}
+
+@code {
+    private List<CleaningRequest>? requests;
+    private string? successMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Загружаем из БД только те заявки, которые имеют статус В работе
+        requests = await DbContext.Requests
+            .Where(r => r.Status == RequestStatus.InProgress)
+            .OrderBy(r => r.RequestDateTime)
+            .ToListAsync();
+    }
+
+    private async Task MarkAsCompleted(int requestId)
+    {
+        var request = requests?.FirstOrDefault(r => r.Id == requestId);
+        if (request == null) return;
+
+        // статус меняется на Выполнено
+        request.Status = RequestStatus.Completed;
+
+        // сохранение изменений в БД
+        await DbContext.SaveChangesAsync();
+
+        requests!.Remove(request);
+
+        successMessage = $"Заявка №{request.Id} (сотрудник {request.FullName}) успешно отмечена как выполненная.";
+
+        await Task.Delay(5000);
+        successMessage = null;
+        StateHasChanged();
+    }
+}
