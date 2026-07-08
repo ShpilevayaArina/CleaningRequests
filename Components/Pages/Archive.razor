@@ -1,0 +1,92 @@
+﻿@page "/archive"
+@rendermode InteractiveServer
+@using CleaningRequests.Models
+@using CleaningRequests.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+<h3>Архив выполненных и оцененных заявок</h3>
+
+@if (requests == null)
+{
+    <p><em>Загрузка архива...</em></p>
+}
+else if (!requests.Any())
+{
+    <div class="alert alert-info mt-3">
+        Архив пуст. Здесь будут отображаться заявки после их оценки сотрудниками.
+    </div>
+}
+else
+{
+    <div class="mb-3">
+        <strong>Всего заявок в архиве: @requests.Count</strong>
+        <span class="ms-3">
+            Средняя оценка: <strong>@GetAverageRating().ToString("F2")</strong> / 5
+        </span>
+    </div>
+
+    <table class="table table-striped table-bordered mt-3">
+        <thead class="table-dark">
+            <tr>
+                <th>№</th>
+                <th>ФИО сотрудника</th>
+                <th>Адрес</th>
+                <th>Кабинеты</th>
+                <th>Услуги</th>
+                <th>Дата выполнения</th>
+                <th>Оценка</th>
+                <th>Комментарий</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var request in requests)
+            {
+                <tr>
+                    <td>@request.Id</td>
+                    <td>@request.FullName</td>
+                    <td>@request.OfficeAddress</td>
+                    <td>@request.Rooms</td>
+                    <td>@request.Services</td>
+                    <td>@request.RequestDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>
+                        <span class="badge @(GetRatingBadgeClass(request.Rating))">
+                            @request.Rating / 5
+                        </span>
+                    </td>
+                    <td>@(string.IsNullOrEmpty(request.FeedbackComment) ? "—" : request.FeedbackComment)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CleaningRequest>? requests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Загружаются БД только заявки со статусом Оценено, сортируются по дате выполнения
+        requests = await DbContext.Requests
+            .Where(r => r.Status == RequestStatus.Rated)
+            .OrderByDescending(r => r.RequestDateTime)
+            .ToListAsync();
+    }
+
+    /// вычисление средней оценки по всем заявкам в архиве
+    private double GetAverageRating()
+    {
+        if (requests == null || !requests.Any() || requests.All(r => r.Rating == null))
+            return 0;
+
+        return requests.Where(r => r.Rating != null).Average(r => r.Rating!.Value);
+    }
+
+    private string GetRatingBadgeClass(int? rating)
+    {
+        if (rating == null) return "bg-secondary";
+        if (rating >= 4) return "bg-success";   
+        if (rating == 3) return "bg-warning";   
+        return "bg-danger";                     
+    }
+}
