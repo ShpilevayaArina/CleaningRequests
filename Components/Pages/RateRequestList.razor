@@ -1,0 +1,62 @@
+﻿@page "/rate-request-list"
+@rendermode InteractiveServer
+@using CleaningRequests.Models
+@using CleaningRequests.Data
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext DbContext
+
+<h3>Заявки, ожидающие оценки качества</h3>
+
+@if (requests == null)
+{
+    <p><em>Загрузка списка заявок...</em></p>
+}
+else if (!requests.Any())
+{
+    <div class="alert alert-info mt-3">
+        На данный момент нет заявок, ожидающих оценки.
+    </div>
+}
+else
+{
+    <table class="table table-striped table-bordered mt-3">
+        <thead class="table-dark">
+            <tr>
+                <th>№</th>
+                <th>ФИО сотрудника</th>
+                <th>Адрес</th>
+                <th>Дата выполнения</th>
+                <th>Действие</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var request in requests)
+            {
+                <tr>
+                    <td>@request.Id</td>
+                    <td>@request.FullName</td>
+                    <td>@request.OfficeAddress</td>
+                    <td>@request.RequestDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>
+                        <a href="/rate-request/@request.Id" class="btn btn-primary btn-sm">
+                            Оценить
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CleaningRequest>? requests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // загружаем из БД только заявки со статусом Выполнено
+        requests = await DbContext.Requests
+            .Where(r => r.Status == RequestStatus.Completed)
+            .OrderByDescending(r => r.RequestDateTime)
+            .ToListAsync();
+    }
+}

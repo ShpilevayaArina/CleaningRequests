@@ -1,0 +1,96 @@
+﻿@page "/rate-request/{RequestId:int}"
+@rendermode InteractiveServer
+@using CleaningRequests.Models
+@using CleaningRequests.Data
+@inject ApplicationDbContext DbContext
+
+<h3>Оценка качества уборки</h3>
+
+@if (request == null)
+{
+    <p><em>Загрузка данных заявки...</em></p>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5>Информация о заявке №@request.Id</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>ФИО сотрудника:</strong> @request.FullName</p>
+            <p><strong>Адрес:</strong> @request.OfficeAddress</p>
+            <p><strong>Кабинеты:</strong> @request.Rooms</p>
+            <p><strong>Услуги:</strong> @request.Services</p>
+            <p><strong>Дата и время:</strong> @request.RequestDateTime.ToString("dd.MM.yyyy HH:mm")</p>
+            @if (!string.IsNullOrEmpty(request.InitialComment))
+            {
+                <p><strong>Комментарий сотрудника:</strong> @request.InitialComment</p>
+            }
+        </div>
+    </div>
+
+    <EditForm FormName="RateRequestForm" Model="@ratingModel" OnValidSubmit="@HandleValidSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group">
+            <label>Оценка качества (от 1 до 5):</label>
+            <InputNumber class="form-control" @bind-Value="ratingModel.Rating" min="1" max="5" />
+            <ValidationMessage For="@(() => ratingModel.Rating)" />
+        </div>
+
+        <div class="form-group mt-3">
+            <label>Комментарий к качеству уборки (необязательно):</label>
+            <InputTextArea class="form-control" @bind-Value="ratingModel.FeedbackComment" rows="4" />
+        </div>
+
+        <button type="submit" class="btn btn-success mt-3">Сохранить оценку</button>
+    </EditForm>
+
+    @if (isSubmitted)
+    {
+        <div class="alert alert-success mt-3">
+            Оценка успешно сохранена! Спасибо за ваш отзыв.
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public int RequestId { get; set; }
+
+    private CleaningRequest? request;
+    private RatingModel ratingModel = new RatingModel();
+    private bool isSubmitted = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        request = await DbContext.Requests.FindAsync(RequestId);
+
+        if (request == null || request.Status != RequestStatus.Completed)
+        {
+            // действия в случае того, если заявка не найдена или уже оценена
+        }
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        if (request == null) return;
+
+        request.Rating = ratingModel.Rating;
+        request.FeedbackComment = ratingModel.FeedbackComment;
+        request.Status = RequestStatus.Rated;
+
+        await DbContext.SaveChangesAsync();
+
+        isSubmitted = true;
+    }
+
+    private class RatingModel
+    {
+        [System.ComponentModel.DataAnnotations.Range(1, 5, ErrorMessage = "Оценка должна быть от 1 до 5")]
+        public int Rating { get; set; }
+
+        public string? FeedbackComment { get; set; }
+    }
+}
